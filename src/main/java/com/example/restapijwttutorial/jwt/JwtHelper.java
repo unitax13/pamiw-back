@@ -21,7 +21,7 @@ public class JwtHelper {
    static final String issuer = "MyApp";
 
 //   @Value("${accessTokenExpirationMinutes}")
-   @Value("#{${accessTokenExpirationMinutes}*5*60*1000}")
+   @Value("#{${accessTokenExpirationMinutes}*180*60*1000}")
    private int accessTokenExpirationMinutes;
 //   @Value("${refreshTokenExpirationMinutes}")
 //   @Value("#{30*24*60*60*1000}")
