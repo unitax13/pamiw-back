@@ -2,9 +2,12 @@ package com.example.restapijwttutorial.rest;
 
 
 import com.example.restapijwttutorial.document.Memo;
+import com.example.restapijwttutorial.document.SharingLink;
 import com.example.restapijwttutorial.document.User;
 import com.example.restapijwttutorial.repository.MemoRepository;
+import com.example.restapijwttutorial.repository.SharingLinksRepository;
 import com.example.restapijwttutorial.repository.UserRepository;
+import com.example.restapijwttutorial.utils.SecureUtils;
 import com.example.restapijwttutorial.utils.Utils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -14,27 +17,79 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-@Controller
+@RestController
+@CrossOrigin(origins = "http://127.0.0.1:5173/", methods = {RequestMethod.OPTIONS, RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE}, allowedHeaders = "*", allowCredentials = "true")
 @RequestMapping(path = "/api/memos")
 public class MemoREST {
    @Autowired
    private MemoRepository memoRepository;
    @Autowired
    private UserRepository userRepository;
+   @Autowired
+   private SharingLinksRepository sharingLinksRepository;
+
+
+   @GetMapping (path= "/shared/{id}")
+   public ResponseEntity<?> getMemoSharedByLink (@PathVariable("id") String id) {
+
+      if (sharingLinksRepository.findByLink(id).isPresent()) {
+         System.out.println("Can edit? " + sharingLinksRepository.findByLink(id).get().isCanEdit());
+         Memo memo = sharingLinksRepository.findByLink(id).get().getMemo();
+         return new ResponseEntity<Object>(memo, HttpStatus.OK);
+      } else {
+         return new ResponseEntity<Object>("Link " + id + " is invalid.", HttpStatus.NOT_FOUND);
+      }
+   }
+
+   @PutMapping (path= "/shared/{id}")
+   public ResponseEntity<?> editMemoSharedByLink (@PathVariable("id") String id,@RequestParam String content) {
+      if (sharingLinksRepository.findByLink(id).isPresent()) {
+         if (sharingLinksRepository.findByLink(id).get().isCanEdit()) {
+            ///this can edit
+            Memo memo = sharingLinksRepository.findByLink(id).get().getMemo();
+            memo.setMemoContent(content);
+            memo.setSanitizedHtml(Utils.parseMarkdown(content));
+            memo.setUpdatedAt(LocalDateTime.now());
+            memoRepository.save(memo);
+            return new ResponseEntity<>(memo, HttpStatus.OK);
+
+
+         } else {
+            return new ResponseEntity<Object>("Cannot edit this resource.", HttpStatus.OK);
+         }
+      }
+      return new ResponseEntity<Object>("Link " + id + " is invalid.", HttpStatus.NOT_FOUND);
+   }
 
 
    @GetMapping
-   public ResponseEntity<?> getAll(@RequestParam String userId) {
-      if (userRepository.findById(userId).isPresent()) {
-         return new ResponseEntity<Object>("Found user", HttpStatus.OK);
+   public ResponseEntity<?> getAll(@AuthenticationPrincipal User user) {
 
+         return new ResponseEntity<Object>(user.getMemos(), HttpStatus.OK);
+
+//      return new ResponseEntity<Object>("Not found", HttpStatus.OK);
+   }
+
+
+   @GetMapping (path = "/{id}")
+   ResponseEntity<?> getOne(@AuthenticationPrincipal User user, @PathVariable("id") Long memoId) {
+      //because this allows us to get a memo of any user, we need to check, whether the user on the memo is the user authenticated
+      // we do that by using this equals on the users' id
+      if (memoRepository.existsById(memoId)) {
+         if (memoRepository.findById(memoId).get().getUser().getId().equals(user.getId())) {
+            return new ResponseEntity<Object>(memoRepository.findById(memoId), HttpStatus.OK);
+         } else {
+            return new ResponseEntity<Object>(HttpStatus.NOT_FOUND);
+         }
       }
-      return new ResponseEntity<Object>("Not found", HttpStatus.OK);
+      else return new ResponseEntity<Object>(HttpStatus.NOT_FOUND);
+
    }
 
    // @desc Add memo
@@ -43,21 +98,13 @@ public class MemoREST {
    @PostMapping
    public ResponseEntity<?> addMemo(@AuthenticationPrincipal User user, @RequestParam String content) {
 
-         List<Memo> list = user.getMemos();
-         if (list == null) {
-            list = new ArrayList<>();
-         }
          Memo newMemo = new Memo(content);
          newMemo.setSanitizedHtml(Utils.parseMarkdown(content));
          newMemo.setUser(user);
          newMemo.setCreatedAt(LocalDateTime.now());
          newMemo.setUpdatedAt(LocalDateTime.now());
 
-
-         list.add(newMemo);
-         user.setMemos(list);
          memoRepository.save(newMemo);
-         userRepository.save(user);
 
          return new ResponseEntity<Object>(newMemo,HttpStatus.OK);
 
@@ -67,24 +114,20 @@ public class MemoREST {
 // @route PUT /api/memos
 // @access Private
    @PutMapping
-   public ResponseEntity<Object> updateMemo(@AuthenticationPrincipal User user, @RequestParam String memoId, @RequestParam String content) {
+   public ResponseEntity<Object> updateMemo(@AuthenticationPrincipal User user, @RequestParam Long memoId, @RequestParam String content) {
       if (memoRepository.existsById(memoId)) {
+//because this allows us to get a memo of any user, we need to check, whether the user on the memo is the user authenticated
 
-         boolean exists = false;
-
+// here we go through users' memos and check if one of them matches id
          List<Memo> newMemos = user.getMemos();
-
          for (int i=0; i< newMemos.size(); i++) {
             Memo memo = newMemos.get(i);
             if (memo.getId() != null && memo.getId().equals(memoId)) {
-               exists = true;
                memo.setMemoContent(content);
                memo.setSanitizedHtml(Utils.parseMarkdown(content));
                memo.setUpdatedAt(LocalDateTime.now());
                memoRepository.save(memo);
-               newMemos.set(i,memo);
-               user.setMemos(newMemos);
-               userRepository.save(user);
+
                return new ResponseEntity<Object>(memo,HttpStatus.OK);
             }
          }
@@ -101,32 +144,61 @@ public class MemoREST {
 // @route DELETE /api/memos
 // @access Private
    @DeleteMapping
-   public ResponseEntity<Object> deleteMemo(@AuthenticationPrincipal User user, @RequestParam String memoId) {
+   public ResponseEntity<Object> deleteMemo(@AuthenticationPrincipal User user, @RequestParam Long memoId) {
       if (memoRepository.existsById(memoId)) {
-
-         boolean exists = false;
-
          List<Memo> newMemos = user.getMemos();
 
          for (int i=0; i< newMemos.size(); i++) {
             Memo memo = newMemos.get(i);
             if (memo.getId() != null && memo.getId().equals(memoId)) {
-               exists = true;
-               newMemos.remove(i);
-               user.setMemos(newMemos);
-               userRepository.save(user);
+//               newMemos.remove(i);
+//               user.setMemos(newMemos);
+//               userRepository.save(user);
                memoRepository.deleteById(memoId);
-               break;
+               return new ResponseEntity<Object>(memo, HttpStatus.OK);
             }
          }
 
-
-
-         return exists ? new ResponseEntity<Object>("exists",HttpStatus.OK) : new ResponseEntity<Object>("yeah, but not on this user",HttpStatus.OK);
-      } else {
-         return new ResponseEntity<Object>(HttpStatus.NOT_FOUND);
       }
+         return new ResponseEntity<Object>(HttpStatus.NOT_FOUND);
+
    }
+
+   @PostMapping(path = "/share")
+   public ResponseEntity<?> generateALinkToTheMemo(@AuthenticationPrincipal User user, @RequestParam Long memoId, @RequestParam(required = false) String canEdit) throws NoSuchAlgorithmException {
+      boolean canEditBool = false;
+      if (canEdit != null && canEdit.equalsIgnoreCase("true") ) {
+         canEditBool = true;
+      }
+
+      if (memoRepository.existsById(memoId)) {
+         if (memoRepository.findById(memoId).get().getUser().getId().equals(user.getId())) {
+
+               SharingLink newSharingLink = new SharingLink();
+               newSharingLink.setMemo(memoRepository.findById(memoId).get());
+               newSharingLink.setCreatedAt(LocalDateTime.now());
+               newSharingLink.setCanEdit(canEditBool);
+
+               String uselessJunk = SecureUtils.generateRandomAlphanumericString(16);
+               System.out.println("Useless junk: " + uselessJunk);
+
+               newSharingLink.setLink(uselessJunk);
+
+//               List<SharingLink> newSharingLinksList = memo.getSharingLinks();
+//               newSharingLinksList.add(newSharingLink);
+//               memo.setSharingLinks(newSharingLinksList);
+
+            newSharingLink = sharingLinksRepository.save(newSharingLink);
+//               memoRepository.save(memo);
+
+               return new ResponseEntity<Object>(newSharingLink.getLink(), HttpStatus.OK);
+            }
+         }
+      return new ResponseEntity<>("Memo not found",HttpStatus.BAD_REQUEST);
+   }
+
+
+
 
 
    // @desc Get memos

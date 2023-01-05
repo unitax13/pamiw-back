@@ -1,11 +1,13 @@
 package com.example.restapijwttutorial.document;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.NonNull;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
+
+import javax.persistence.*;
+
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -14,19 +16,20 @@ import java.util.Collections;
 import java.util.List;
 
 
-@Document
+@Entity
 @Data
 public class User implements UserDetails {
 
 
    @Id
-   private String id;
+   @GeneratedValue(strategy= GenerationType.AUTO)
+   private Long id;
 
-   @Indexed(unique = true)
+
    @NonNull
    private String username;
 
-   @Indexed(unique = true)
+
    @NonNull
    private String email;
 
@@ -35,7 +38,25 @@ public class User implements UserDetails {
    @NonNull
    private String password;
 
+
+   @OneToMany(fetch = FetchType.EAGER, mappedBy = "user")
    private List<Memo> memos;
+
+   @JsonIgnore
+   @OneToMany(mappedBy = "owner")
+   private List<RefreshToken> refreshTokens;
+
+   public User () {
+
+   }
+
+   public User(@NonNull String username, @NonNull String email, @NonNull String password) {
+      this.username = username;
+      this.email = email;
+      this.password = password;
+      this.memos = Collections.EMPTY_LIST;
+      this.refreshTokens = Collections.EMPTY_LIST;
+   }
 
    @Override
    public Collection<? extends GrantedAuthority> getAuthorities() {

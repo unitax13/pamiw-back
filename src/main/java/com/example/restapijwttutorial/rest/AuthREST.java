@@ -20,14 +20,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 
 @RestController
+@CrossOrigin(origins = "http://127.0.0.1:5173/", methods = {RequestMethod.OPTIONS, RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE}, allowedHeaders = "*", allowCredentials = "true")
 @RequestMapping("/api/auth")
 public class AuthREST {
 
@@ -57,9 +55,9 @@ public class AuthREST {
       refreshTokenRepository.save(refreshToken);
 
       String accessToken = jwtHelper.generateAccessToken(user);
-      String refreshTokenString = jwtHelper.generateRefreshToken(user, refreshToken.getId());
+      String refreshTokenString = jwtHelper.generateRefreshToken(user, refreshToken.getId().toString());
 
-      return ResponseEntity.ok(new TokenDTO(user.getId(), accessToken, refreshTokenString));
+      return ResponseEntity.ok(new TokenDTO(user.getId().toString(), accessToken, refreshTokenString));
    }
 
    @PostMapping("/register")
@@ -76,16 +74,16 @@ public class AuthREST {
       refreshTokenRepository.save(refreshToken);
 
       String accessToken = jwtHelper.generateAccessToken(user);
-      String refreshTokenString = jwtHelper.generateRefreshToken(user, refreshToken.getId());
+      String refreshTokenString = jwtHelper.generateRefreshToken(user, refreshToken.getId().toString());
 
-      return ResponseEntity.ok(new TokenDTO(user.getId(), accessToken, refreshTokenString));
+      return ResponseEntity.ok(new TokenDTO(user.getId().toString(), accessToken, refreshTokenString));
    }
 
    @PostMapping("/logout")
    public ResponseEntity<?> logout(@RequestBody TokenDTO dto) {
       String refreshTokenString = dto.getRefreshToken();
-      if (jwtHelper.validateRefreshToken(refreshTokenString) && refreshTokenRepository.existsById(jwtHelper.getTokenIdFromRefreshToken(refreshTokenString))) {
-         refreshTokenRepository.deleteById(jwtHelper.getTokenIdFromRefreshToken(refreshTokenString));
+      if (jwtHelper.validateRefreshToken(refreshTokenString) && refreshTokenRepository.existsById(Long.parseLong(jwtHelper.getTokenIdFromRefreshToken(refreshTokenString)))) {
+         refreshTokenRepository.deleteById(Long.parseLong(jwtHelper.getTokenIdFromRefreshToken(refreshTokenString)));
          return ResponseEntity.ok().build();
       }
       throw new BadCredentialsException("invalid token");
@@ -94,12 +92,12 @@ public class AuthREST {
    @PostMapping("access-token")
    public ResponseEntity<?> accessToken(@RequestBody TokenDTO dto) {
       String refreshTokenString = dto.getRefreshToken();
-      if (jwtHelper.validateRefreshToken(refreshTokenString) && refreshTokenRepository.existsById(jwtHelper.getTokenIdFromRefreshToken(refreshTokenString))) {
-         User user = userService.findById(jwtHelper.getUserIdFromRefreshToken(refreshTokenString));
+      if (jwtHelper.validateRefreshToken(refreshTokenString) && refreshTokenRepository.existsById(Long.parseLong(jwtHelper.getTokenIdFromRefreshToken(refreshTokenString)))) {
+         User user = userService.findById(Long.parseLong(jwtHelper.getUserIdFromRefreshToken(refreshTokenString)));
 
          String accessToken = jwtHelper.generateAccessToken(user);
 
-         return ResponseEntity.ok(new TokenDTO(user.getId(), accessToken, refreshTokenString));
+         return ResponseEntity.ok(new TokenDTO(user.getId().toString(), accessToken, refreshTokenString));
       }
       throw new BadCredentialsException("invalid token");
    }
@@ -107,20 +105,20 @@ public class AuthREST {
    @PostMapping("refresh-token")
    public ResponseEntity<?> refreshToken(@RequestBody TokenDTO dto) {
       String refreshTokenString = dto.getRefreshToken();
-      if (jwtHelper.validateRefreshToken(refreshTokenString) && refreshTokenRepository.existsById(jwtHelper.getTokenIdFromRefreshToken(refreshTokenString))) {
+      if (jwtHelper.validateRefreshToken(refreshTokenString) && refreshTokenRepository.existsById(Long.parseLong(jwtHelper.getTokenIdFromRefreshToken(refreshTokenString)))) {
 
-         refreshTokenRepository.deleteById(jwtHelper.getTokenIdFromRefreshToken(refreshTokenString));
+         refreshTokenRepository.deleteById(Long.parseLong(jwtHelper.getTokenIdFromRefreshToken(refreshTokenString)));
 
-         User user = userService.findById(jwtHelper.getUserIdFromRefreshToken(refreshTokenString));
+         User user = userService.findById(Long.parseLong(jwtHelper.getUserIdFromRefreshToken(refreshTokenString)));
 
          RefreshToken refreshToken = new RefreshToken();
          refreshToken.setOwner(user);
          refreshTokenRepository.save(refreshToken);
 
          String accessToken = jwtHelper.generateAccessToken(user);
-         String newRefreshTokenString = jwtHelper.generateRefreshToken(user, refreshToken.getId());
+         String newRefreshTokenString = jwtHelper.generateRefreshToken(user, refreshToken.getId().toString());
 
-         return ResponseEntity.ok(new TokenDTO(user.getId(), accessToken, newRefreshTokenString));
+         return ResponseEntity.ok(new TokenDTO(user.getId().toString(), accessToken, newRefreshTokenString));
       }
       throw new BadCredentialsException("invalid token");
    }

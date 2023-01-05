@@ -17,7 +17,7 @@ public class UserService implements UserDetailsService {
       return userRepository.findByUsername(username).orElseThrow(() -> new UsernameNotFoundException("username not found"));
    }
 
-   public User findById(String id) {
+   public User findById(Long id) {
       //System.out.println("Searching for user with id: " + id);
       return userRepository.findById(id).orElseThrow(() -> new UsernameNotFoundException("user id not found"));
    }
