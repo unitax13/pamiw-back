@@ -1,16 +1,20 @@
 package com.example.restapijwttutorial.document;
 
 import lombok.Data;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.DocumentReference;
+import javax.persistence.Id;
 
-@Document
+
+import javax.persistence.*;
+
+@Entity
 @Data
 public class RefreshToken {
 
    @Id
-   private String id;
-   @DocumentReference
+   @GeneratedValue(strategy= GenerationType.AUTO)
+   private Long id;
+
+   @ManyToOne
+   @JoinColumn(name="user_id")
    private User owner;
 }

@@ -3,23 +3,23 @@ package com.example.restapijwttutorial.document;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.DocumentReference;
+import javax.persistence.Id;
 
 
+import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
-@Document
+@Entity
 @Data
 public class Memo {
 
    @Id
-   private String id;
+   @GeneratedValue(strategy= GenerationType.AUTO)
+   private Long id;
 
-   //TODO: Roles system, links system
-
-   @DocumentReference
+   @ManyToOne
+   @JoinColumn(name="user_id")
    private User user;
 
    private String memoContent;
@@ -29,6 +29,9 @@ public class Memo {
    private LocalDateTime createdAt;
    private LocalDateTime updatedAt;
 
+   @OneToMany(fetch = FetchType.EAGER, mappedBy = "memo",cascade = CascadeType.REMOVE)
+   private List<SharingLink> sharingLinks;
+
    public Memo() {
 
    }
@@ -37,11 +40,20 @@ public class Memo {
       this.memoContent = content;
    }
 
-   public String getId() {
+   //@JsonIgnore
+   public List<SharingLink> getSharingLinks() {
+      return sharingLinks;
+   }
+
+   public void setSharingLinks(List<SharingLink> sharingLinks) {
+      this.sharingLinks = sharingLinks;
+   }
+
+   public Long getId() {
       return id;
    }
 
-   public void setId(String id) {
+   public void setId(Long id) {
       this.id = id;
    }
 

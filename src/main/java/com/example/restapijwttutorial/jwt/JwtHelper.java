@@ -44,7 +44,7 @@ public class JwtHelper {
 
    public String generateAccessToken(User user) {
       return JWT.create().withIssuer(issuer)
-              .withSubject(user.getId())
+              .withSubject(user.getId().toString())
               .withIssuedAt(new Date())
               .withExpiresAt(new Date(new Date().getTime() + accessTokenExpirationMinutes))
               .sign(accessTokenAlgorithm);
@@ -52,7 +52,7 @@ public class JwtHelper {
 
    public String generateRefreshToken(User user, String tokenId) {
       return JWT.create().withIssuer(issuer)
-              .withSubject(user.getId())
+              .withSubject(user.getId().toString())
               .withClaim("tokenId", tokenId)
               .withIssuedAt(new Date())
               .withExpiresAt(new Date(new Date().getTime() + refreshTokenExpirationMinutes))
