@@ -18,8 +18,6 @@ public class Memo {
    @GeneratedValue(strategy= GenerationType.AUTO)
    private Long id;
 
-   //TODO: Roles system, links system
-
    @ManyToOne
    @JoinColumn(name="user_id")
    private User user;

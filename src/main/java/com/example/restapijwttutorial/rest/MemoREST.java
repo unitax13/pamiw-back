@@ -68,15 +68,6 @@ public class MemoREST {
    }
 
 
-   @GetMapping
-   public ResponseEntity<?> getAll(@AuthenticationPrincipal User user) {
-
-         return new ResponseEntity<Object>(user.getMemos(), HttpStatus.OK);
-
-//      return new ResponseEntity<Object>("Not found", HttpStatus.OK);
-   }
-
-
    @GetMapping (path = "/{id}")
    ResponseEntity<?> getOne(@AuthenticationPrincipal User user, @PathVariable("id") Long memoId) {
       //because this allows us to get a memo of any user, we need to check, whether the user on the memo is the user authenticated
@@ -91,6 +82,16 @@ public class MemoREST {
       else return new ResponseEntity<Object>(HttpStatus.NOT_FOUND);
 
    }
+
+   @GetMapping
+   public ResponseEntity<?> getAll(@AuthenticationPrincipal User user) {
+
+         return new ResponseEntity<Object>(user.getMemos(), HttpStatus.OK);
+
+//      return new ResponseEntity<Object>("Not found", HttpStatus.OK);
+   }
+
+
 
    // @desc Add memo
 // @route POST /api/memos
